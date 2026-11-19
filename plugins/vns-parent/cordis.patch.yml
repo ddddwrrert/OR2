@@ -1,0 +1,5 @@
+# vns-parent registers select and mutate after dsh-evolve-loop.
+# Do not load this together with DSH_EVOLVE_FLOOR=1.
+- insert:
+    - id: vns-parent
+      name: vns-parent

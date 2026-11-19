@@ -1,0 +1,102 @@
+{
+  "name": "frontiercs-bboplace-data",
+  "bboplace_bench_repository": {
+    "url": "https://github.com/lamda-bbo/BBOPlace-Bench",
+    "commit": "4a0dde451e40a3f368e501df6f027c442fcca02a"
+  },
+  "image": {
+    "expected_registry_tag": "ghcr.io/frontiercs/frontiercs-bboplace-data:2026-06-ispd-iccad",
+    "bboplace_root": "/opt/bboplace-bench",
+    "contains": [
+      "/opt/bboplace-bench/src",
+      "/opt/bboplace-bench/config",
+      "/opt/bboplace-bench/benchmarks/ispd2005",
+      "/opt/bboplace-bench/benchmarks/iccad2015"
+    ]
+  },
+  "datasets": {
+    "ispd2005": {
+      "benchmarks_in_image": [
+        "adaptec1",
+        "adaptec2",
+        "adaptec3",
+        "adaptec4",
+        "bigblue1",
+        "bigblue2",
+        "bigblue3",
+        "bigblue4"
+      ],
+      "benchmarks_scored": [
+        "adaptec1",
+        "adaptec2",
+        "adaptec3",
+        "adaptec4",
+        "bigblue1",
+        "bigblue3"
+      ],
+      "archive": {
+        "name": "ispd2005.zip",
+        "source": "BBOPlace-Bench README Google Drive folder 1MVIOZp2rihzIFK3C_4RqJs-bUv1TW2YT, file 1d5gpvDSQluWiT_O2QVEJgyFdkeyyVT7E",
+        "sha256": "bd8d44cc3a39070fff654c7e6573fa0d207c98435129d818c89559fd5672aa72"
+      },
+      "archive_size_observed": "189 MiB",
+      "extracted_size_observed": "1.2 GiB"
+    },
+    "iccad2015": {
+      "benchmarks_in_image": [
+        "superblue1",
+        "superblue3",
+        "superblue4",
+        "superblue5",
+        "superblue7",
+        "superblue10",
+        "superblue16",
+        "superblue18"
+      ],
+      "benchmarks_scored": [
+        "superblue1",
+        "superblue3",
+        "superblue4",
+        "superblue5",
+        "superblue7",
+        "superblue10",
+        "superblue16",
+        "superblue18"
+      ],
+      "archive": {
+        "name": "iccad2015_benchmark.zip",
+        "source": "BBOPlace-Bench README Google Drive file 1JEC17FmL2cM8BEAewENvRyG6aWxH53mX",
+        "sha256": "295120fa9f4e46013b68f90ed29603827e9768b84844c461c576881baa8e627a"
+      },
+      "archive_size_observed": "513 MiB",
+      "extracted_size_observed": "2.2 GiB"
+    }
+  },
+  "scoring_constants": {
+    "unit": "raw HPWL; source tables report MP-HPWL in x10^5; scoring baselines are relaxed by 1.2x",
+    "ispd2005": {
+      "source": "BBOPlace-Bench report Table III, MGO + Vanilla-EA, relaxed by 1.2x",
+      "baseline_hpwl": {
+        "adaptec1": 696000.0,
+        "adaptec2": 7375200.0,
+        "adaptec3": 6735600.0,
+        "adaptec4": 6814800.0,
+        "bigblue1": 276000.0,
+        "bigblue3": 6288000.0
+      }
+    },
+    "iccad2015": {
+      "source": "BBOPlace-Bench report Table V, MGO + PSO, relaxed by 1.2x",
+      "baseline_hpwl": {
+        "superblue1": 69600.0,
+        "superblue3": 182400.0,
+        "superblue4": 112800.0,
+        "superblue5": 451200.0,
+        "superblue7": 202800.0,
+        "superblue10": 64800.0,
+        "superblue16": 115200.0,
+        "superblue18": 57600.0
+      }
+    }
+  }
+}

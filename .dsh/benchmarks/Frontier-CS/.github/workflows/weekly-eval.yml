@@ -1,0 +1,181 @@
+name: Weekly Batch Evaluation
+
+on:
+  schedule:
+    # Run every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Track to evaluate (research, algorithmic, or both)'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - research
+          - algorithmic
+      workers:
+        description: 'Number of parallel workers'
+        required: false
+        default: '20'
+      clusters:
+        description: 'Number of SkyPilot clusters (research track only)'
+        required: false
+        default: '20'
+
+env:
+  SKYPILOT_CLOUD: gcp
+  RAY_automatic_object_spilling_enabled: "false"
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hours max
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout internal repository
+        uses: actions/checkout@v4
+        with:
+          repository: FrontierCS/Frontier-CS-internal
+          token: ${{ secrets.INTERNAL_REPO_TOKEN }}
+          path: internal
+
+      - name: Checkout results repository
+        uses: actions/checkout@v4
+        with:
+          repository: FrontierCS/Frontier-CS-Result
+          token: ${{ secrets.RESULTS_REPO_TOKEN }}
+          path: results-repo
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: |
+          uv sync
+          uv pip install "skypilot[gcp,aws]"
+
+      - name: Set up AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << EOF
+          [default]
+          aws_access_key_id = $AWS_ACCESS_KEY_ID
+          aws_secret_access_key = $AWS_SECRET_ACCESS_KEY
+          EOF
+          cat > ~/.aws/config << EOF
+          [default]
+          region = us-east-1
+          EOF
+          echo "AWS credentials configured"
+
+      - name: Set up GCP credentials
+        run: |
+          echo '${{ secrets.GCP_CREDENTIALS }}' > /tmp/gcp-key.json
+          mkdir -p ~/.config/gcloud
+          cp /tmp/gcp-key.json ~/.config/gcloud/application_default_credentials.json
+          if grep -q '"type": "service_account"' /tmp/gcp-key.json; then
+            gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+          fi
+          gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+
+      - name: Configure SkyPilot
+        run: |
+          mkdir -p ~/.sky
+          uv run sky check aws gcp || true
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+
+      - name: Check internal ⊇ public
+        run: |
+          ./scripts/run_eval.sh --check-overlap --internal-dir internal
+
+      - name: Run research evaluation
+        if: ${{ github.event.inputs.track == 'both' || github.event.inputs.track == 'research' || github.event.inputs.track == '' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+        run: |
+          WORKERS="${{ github.event.inputs.workers || '4' }}"
+          CLUSTERS="${{ github.event.inputs.clusters || '4' }}"
+
+          ./scripts/run_eval.sh \
+            --track research \
+            --internal-dir internal \
+            --results-repo results-repo \
+            -j $CLUSTERS \
+            --push
+
+      - name: Run algorithmic evaluation
+        if: ${{ github.event.inputs.track == 'both' || github.event.inputs.track == 'algorithmic' || github.event.inputs.track == '' }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+        run: |
+          WORKERS="${{ github.event.inputs.workers || '4' }}"
+
+          ./scripts/run_eval.sh \
+            --track algorithmic \
+            --internal-dir internal \
+            --results-repo results-repo \
+            -j $WORKERS \
+            --push
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-results-${{ github.run_id }}
+          path: internal/results/
+          retention-days: 90
+
+      - name: Push results to results repository
+        if: always()
+        env:
+          RESULTS_REPO_TOKEN: ${{ secrets.RESULTS_REPO_TOKEN }}
+        run: |
+          # Copy results from internal to results-repo
+          if [ -d "internal/results" ]; then
+            cp -r internal/results/* results-repo/
+          fi
+          if [ -d "internal/algorithmic/results" ]; then
+            mkdir -p results-repo/algorithmic
+            cp -r internal/algorithmic/results/* results-repo/algorithmic/
+          fi
+
+          cd results-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add .
+          git diff --staged --quiet || git commit -m "chore: update evaluation results $(date +%Y-%m-%d)"
+          git push
+
+      - name: Cleanup SkyPilot clusters
+        if: always()
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
+        run: |
+          echo "Cleaning up SkyPilot clusters..."
+          CLUSTERS=$(uv run sky status --refresh 2>/dev/null | grep -E '^eval-' | awk '{print $1}' || true)
+          if [ -n "$CLUSTERS" ]; then
+            echo "$CLUSTERS" | while read cluster; do
+              echo "Terminating cluster: $cluster"
+              uv run sky down "$cluster" -y &
+            done
+            wait
+          fi
+          echo "Cleanup complete"

@@ -1,0 +1,25 @@
+{
+  "name": "vns-parent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Variable-neighborhood parent switch for an Organon evolve run. Registers select and mutate. Does not replace the loop, the evaluator, or the fitness definition.",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,3 @@
+- id: credentials
+  config:
+    path: !!js process.getBuiltinModule('node:path').join(process.env.ORGANON_ROOT, 'organon-credentials.yaml')

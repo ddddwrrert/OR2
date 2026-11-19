@@ -1,0 +1,18 @@
+- id: credentials
+  config:
+    path: !!js process.getBuiltinModule('node:path').join(process.env.ORGANON_ROOT, 'organon-credentials.yaml')
+
+- id: skill-filesystem
+  config:
+    customSkillDirs:
+      - !!js process.getBuiltinModule('node:path').join(process.env.ORGANON_ROOT, 'deepseek-harness', 'packages', 'preset', 'agent-preset', 'skills')
+      - !!js process.getBuiltinModule('node:path').join(process.env.ORGANON_ROOT, '.dsh', 'profiles', 'organon-sdk', 'node_modules', 'dsh-evolve-loop', 'skills')
+
+- insert:
+    - id: agent-preset-registry
+      name: '@deepseek-ai/dsh-agent-preset-registry'
+      config:
+        default: evolve
+
+    - id: cordis-host-runner
+      name: '@deepseek-ai/dsh-cordis-host-runner'
